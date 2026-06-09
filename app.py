@@ -43,7 +43,7 @@ st.set_page_config(
     page_title="FitBot",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 # ── global CSS ─────────────────────────────────────────────────────────────────
@@ -62,6 +62,76 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 /* ── hide streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
 .stDeployButton { display: none; }
+
+/* ── mobile fixes ── */
+@media (max-width: 768px) {
+    .main .block-container { padding: 1rem 1rem 6rem; }
+}
+
+/* Floating profile button - bottom right - mobile only */
+.float-profile-btn {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 16px;
+    z-index: 99999;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 13px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Inter, sans-serif;
+    box-shadow: 0 6px 24px rgba(124,58,237,0.6);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    text-decoration: none;
+}
+@media (max-width: 768px) {
+    .float-profile-btn { display: block; }
+}
+
+/* Always show Streamlit's sidebar collapse arrow - make it big and visible */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+    border-radius: 0 12px 12px 0 !important;
+    width: 32px !important;
+    height: 56px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    box-shadow: 4px 0 16px rgba(124,58,237,0.4) !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
+    border: none !important;
+}
+[data-testid="collapsedControl"]:hover {
+    opacity: 0.85 !important;
+    width: 36px !important;
+}
+[data-testid="collapsedControl"] svg {
+    fill: white !important;
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Sidebar close arrow styling */
+[data-testid="stSidebarCollapseButton"] {
+    background: #1c1c2e !important;
+    border-radius: 8px !important;
+    border: 1px solid #2a2a4a !important;
+}
+[data-testid="stSidebarCollapseButton"]:hover {
+    background: #7c3aed !important;
+}
+[data-testid="stSidebarCollapseButton"] svg {
+    fill: #a78bfa !important;
+}
 
 /* ── sidebar ── */
 section[data-testid="stSidebar"] {
@@ -382,11 +452,64 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<div class='topnav'>
-  <span class='topnav-title'>FitBot <span style='color:#3a3a5a;font-weight:300'>/ Dashboard</span></span>
-  <span class='topnav-badge'>⚡ Groq · LLaMA 3.3 · Random Forest</span>
-</div>""", unsafe_allow_html=True)
+# ── topnav with working mobile open button ──────────────────────────────────
+col_title, col_btn = st.columns([8, 2])
+
+with col_title:
+    st.markdown("""
+    <div class='topnav'>
+      <span class='topnav-title'>FitBot <span style='color:#3a3a5a;font-weight:300'>/ Dashboard</span></span>
+      <span class='topnav-badge'>⚡ Groq · LLaMA 3.3 · Random Forest</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_btn:
+    st.markdown("""
+    <style>
+    /* Hide open-sidebar col on desktop */
+    @media (min-width: 769px) { .mobile-open-btn { display: none !important; } }
+    /* Show on mobile */
+    @media (max-width: 768px) {
+        .mobile-open-btn {
+            display: flex !important;
+            justify-content: flex-end;
+            padding-top: 6px;
+        }
+        .mobile-open-btn a {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: white !important;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: Inter, sans-serif;
+            box-shadow: 0 4px 16px rgba(124,58,237,0.5);
+            white-space: nowrap;
+        }
+    }
+    </style>
+    <div class='mobile-open-btn'>
+      <a href='javascript:void(0)'
+         onclick="
+           var sb = window.parent.document.querySelector('[data-testid=stSidebar]');
+           var ctrl = window.parent.document.querySelector('[data-testid=collapsedControl]');
+           if(ctrl){ ctrl.click(); }
+           else if(sb){ sb.style.transform='translateX(0)'; sb.style.display='block'; }
+         ">
+        ☰ Profile
+      </a>
+    </div>
+    """, unsafe_allow_html=True)
+
+if not st.session_state.profile:
+    st.markdown("""
+    <div style='background:#0f0f1a;border:1px solid #2a1a5a;border-radius:10px;
+    padding:14px 18px;margin-bottom:16px;font-size:13px;color:#a78bfa;'>
+      📱 <strong>On mobile?</strong> Tap <strong>☰ Profile</strong> (top right) to fill in your details.
+      &nbsp; 💻 <strong>On desktop?</strong> Use the sidebar on the left.
+    </div>
+    """, unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["Chat", "Overview", "Meal Plan", "Workout"])
 
@@ -482,7 +605,13 @@ CALORIES: BMR {int(s.get("bmr",0))} | TDEE {int(s.get("tdee",0))} kcal"""
 
             try:
                 from groq import Groq
+                # Works locally (env var) AND on Streamlit Cloud (st.secrets)
                 key = os.getenv("GROQ_API_KEY")
+                if not key:
+                    try:
+                        key = st.secrets["GROQ_API_KEY"]
+                    except Exception:
+                        pass
                 if not key:
                     raise ValueError("GROQ_API_KEY not set")
                 client   = Groq(api_key=key)
@@ -645,3 +774,17 @@ with tab4:
         st.markdown(f"<div class='info-card'><div class='info-card-title'>Coach Note</div>"
                     f"<div class='info-note'>{wo['notes']}</div></div>", unsafe_allow_html=True)
         st.markdown("<div class='disclaimer'>General fitness guidelines only — consult a certified trainer before starting new programs.</div>", unsafe_allow_html=True)
+
+# ── floating mobile open-sidebar button (always visible on mobile) ────────────
+st.markdown("""
+<a class='float-profile-btn'
+   href='#'
+   onclick="(function(){
+     var c=window.parent.document.querySelector('[data-testid=collapsedControl]');
+     var s=window.parent.document.querySelector('[data-testid=stSidebar]');
+     if(c){c.click();}
+     else if(s){s.style.cssText='transform:translateX(0)!important;display:block!important;';}
+     return false;
+   })()"
+>☰ &nbsp;Open Profile</a>
+""", unsafe_allow_html=True)

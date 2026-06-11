@@ -1,6 +1,10 @@
 """
 recommender.py  –  Loads trained models and returns predictions.
 Works with the REAL Kaggle dataset feature set.
+
+IMPORTANT FIX: The Kaggle gym dataset had no diet_preference column,
+so the ML model cannot learn it. We apply a hard override AFTER prediction
+to ensure Vegetarian / Vegan / Eggetarian users NEVER get a Non-Veg diet plan.
 """
 
 import joblib
@@ -28,9 +32,30 @@ def _init():
 
 
 def _enc(col, val):
-    le = _encoders[col]
+    le  = _encoders[col]
     val = val if val in le.classes_ else le.classes_[0]
     return int(le.transform([val])[0])
+
+
+def _fix_diet_plan(ml_plan, diet_pref, bmi, fat_pct, tdee):
+    """
+    Hard rule: diet_preference always overrides the ML prediction.
+    Vegetarian / Vegan / Eggetarian must NEVER receive a Non-Veg plan.
+    """
+    NON_VEG = "High Protein Non-Veg Diet"
+
+    if diet_pref in ("Vegetarian", "Vegan", "Eggetarian"):
+        if ml_plan == NON_VEG:
+            # Replace with best veg alternative based on body stats
+            if bmi > 27 or fat_pct > 25:
+                return "Low Calorie Balanced Diet"
+            elif tdee > 2800:
+                return "High Carb Performance Diet"
+            else:
+                return "High Protein Veg Diet"
+
+    # Non-Vegetarian → ML prediction is always fine
+    return ml_plan
 
 
 def predict(
@@ -40,7 +65,8 @@ def predict(
     session_duration_h, calories_burned,
     fat_pct, water_intake_l,
     workout_freq, workout_type, experience_level,
-    bmr, tdee
+    bmr, tdee,
+    diet_preference="Non-Vegetarian",   # ← new param, safe default
 ):
     _init()
 
@@ -71,8 +97,13 @@ def predict(
     dp_enc = _diet_model.predict(X)[0]
     wp_enc = _workout_model.predict(X)[0]
 
+    ml_diet_plan = _encoders["diet_plan"].inverse_transform([dp_enc])[0]
+
+    # ── Apply hard diet preference override ───────────────────────────────────
+    final_diet_plan = _fix_diet_plan(ml_diet_plan, diet_preference, bmi, fat_pct, tdee)
+
     return {
         "fitness_category": _encoders["fitness_category"].inverse_transform([fc_enc])[0],
-        "diet_plan":        _encoders["diet_plan"].inverse_transform([dp_enc])[0],
+        "diet_plan":        final_diet_plan,
         "workout_plan":     _encoders["workout_plan"].inverse_transform([wp_enc])[0],
     }
